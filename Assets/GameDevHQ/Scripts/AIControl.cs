@@ -1,7 +1,5 @@
-using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEngine.InputSystem;
 
 enum AIState
 {
@@ -16,9 +14,7 @@ public class AIControl : MonoBehaviour
 
     private float _stoppingDistance = 0.5f;
     private int _currentPointIndex = 0;
-    private int _direction = 1;
     [SerializeField] private AIState _currentState = AIState.Running;
-
 
     void Awake()
     {
@@ -31,21 +27,42 @@ public class AIControl : MonoBehaviour
         BeginPatrolFromNearestPoint();
     }
 
-    /// <summary>
-    /// Finds the closest waypoint, then heads to the next one so every enemy
-    /// continues the loop in the same direction (never runs back to index 0).
-    /// Call this from SpawnManager after setting position / NavMeshAgent.Warp.
-    /// </summary>
+    public void SetWaypoints(Transform[] points)
+    {
+        _points = points;
+    }
+
     public void BeginPatrolFromNearestPoint()
     {
-        if (_points == null || _points.Length == 0 || _agent == null)
+        if (!HasValidPoints() || _agent == null)
             return;
 
         int nearest = GetNearestPointIndex();
-        _currentPointIndex = (nearest + 1) % _points.Length;
+        // Don't start by targeting the end point — go to the next one after nearest
+        int next = (nearest + 1) % _points.Length;
+        if (next == EndPointIndex)
+            next = (next + 1) % _points.Length;
+
+        _currentPointIndex = next;
 
         if (_agent.isOnNavMesh)
             _agent.SetDestination(_points[_currentPointIndex].position);
+    }
+
+    int EndPointIndex => _points.Length - 1; // waypoint[10] if you have 11 points (0–10)
+
+    bool HasValidPoints()
+    {
+        if (_points == null || _points.Length == 0)
+            return false;
+
+        for (int i = 0; i < _points.Length; i++)
+        {
+            if (_points[i] == null)
+                return false;
+        }
+
+        return true;
     }
 
     int GetNearestPointIndex()
@@ -55,9 +72,6 @@ public class AIControl : MonoBehaviour
 
         for (int i = 0; i < _points.Length; i++)
         {
-            if (_points[i] == null)
-                continue;
-
             float dist = Vector3.Distance(transform.position, _points[i].position);
             if (dist < bestDist)
             {
@@ -71,11 +85,11 @@ public class AIControl : MonoBehaviour
 
     void Update()
     {
-        if (_agent != null && _agent.isOnNavMesh && !_agent.hasPath && !_agent.pathPending
-            && _points != null && _points.Length > 0)
-        {
+        if (!HasValidPoints() || _agent == null || !gameObject.activeInHierarchy)
+            return;
+
+        if (_agent.isOnNavMesh && !_agent.hasPath && !_agent.pathPending)
             _agent.SetDestination(_points[_currentPointIndex].position);
-        }
 
         GoToNextPoint();
         UpdateAnimator();
@@ -84,12 +98,10 @@ public class AIControl : MonoBehaviour
         {
             case AIState.Running:
                 break;
-
             case AIState.Hide:
                 if (_animator != null)
                     _animator.SetBool("Hiding", true);
                 break;
-
             case AIState.Death:
                 if (_animator != null)
                     _animator.SetTrigger("Death");
@@ -102,9 +114,7 @@ public class AIControl : MonoBehaviour
         if (_animator == null || _agent == null)
             return;
 
-        // Robot.controller: Idle < 0.01 < Walk < 3 < Running
-        float speed = _agent.velocity.magnitude;
-        _animator.SetFloat("Speed", speed);
+        _animator.SetFloat("Speed", _agent.velocity.magnitude);
 
         if (_currentState != AIState.Hide)
             _animator.SetBool("Hiding", false);
@@ -118,28 +128,31 @@ public class AIControl : MonoBehaviour
         if (_agent.pathStatus == NavMeshPathStatus.PathInvalid)
             return false;
 
-        // remainingDistance is unreliable until a path exists
         if (!_agent.hasPath)
             return false;
 
         return _agent.remainingDistance <= _stoppingDistance;
     }
 
-
-
     public void GoToNextPoint()
     {
-        if (_points == null || _points.Length == 0)
+        if (!HasValidPoints())
             return;
 
         if (!HasReachedDestination())
             return;
 
-        _currentPointIndex = (_currentPointIndex + 1) % _points.Length;
+        // Arrived at final waypoint → return to pool via Singleton
+        if (_currentPointIndex == EndPointIndex)
+        {
+            if (SpawnManager.Instance != null)
+                SpawnManager.Instance.ReturnEnemy(gameObject);
+            else
+                gameObject.SetActive(false);
+            return;
+        }
+
+        _currentPointIndex++;
         _agent.SetDestination(_points[_currentPointIndex].position);
     }
-
-
-
-
 }
