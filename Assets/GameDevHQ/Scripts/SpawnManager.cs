@@ -11,7 +11,7 @@ public class SpawnManager : MonoBehaviour
     [SerializeField] private Transform[] _waypoints;
     [SerializeField] private GameObject _enemyPrefab;
     [SerializeField] private int _poolSize = 20;
-    [SerializeField] private float _spawnInterval = 4f;
+    [SerializeField] private float _spawnInterval = 6f;
 
     private readonly List<GameObject> _pool = new List<GameObject>();
 
