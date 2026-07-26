@@ -26,6 +26,7 @@ public class PlayerRay : MonoBehaviour
             _fireCooldown = 1f;
 
         // Enemy-only masks ignore columns/walls — always include Default for cover
+        // Barrels are on the Enemy layer in this project
         int defaultAndEnemy = LayerMask.GetMask("Default", "Enemy");
         if (_layer == 0)
             _layer = defaultAndEnemy;
@@ -36,9 +37,7 @@ public class PlayerRay : MonoBehaviour
     void Update()
     {
         if (Keyboard.current.rKey.wasPressedThisFrame)
-        {
             Reload();
-        }
 
         if (_playerCamera == null)
             return;
@@ -51,16 +50,32 @@ public class PlayerRay : MonoBehaviour
         if (_ammoCount <= 0)
             return;
 
+        Shoot();
+    }
+
+    void Shoot()
+    {
         _nextFireTime = Time.time + _fireCooldown;
 
-        SoundManager.Instance.PlayGunShot();
-
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.PlayGunShot();
 
         Ray rayOrigin = _playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
 
-        // First solid hit only — columns/walls on Default block enemies behind them
-        if (!Physics.Raycast(rayOrigin, out RaycastHit hitInfo, 100f, _layer))
+        // Collide: barrels use trigger colliders
+        if (!Physics.Raycast(rayOrigin, out RaycastHit hitInfo, 100f, _layer, QueryTriggerInteraction.Collide))
             return;
+
+        if (hitInfo.collider.CompareTag("Barrel"))
+        {
+            ExplosiveBarrel barrel = hitInfo.collider.GetComponentInParent<ExplosiveBarrel>();
+            if (barrel == null)
+                barrel = hitInfo.collider.gameObject.AddComponent<ExplosiveBarrel>();
+
+            barrel.Explode();
+            _ammoCount--;
+            return;
+        }
 
         if (!hitInfo.collider.CompareTag("Enemy"))
             return;
