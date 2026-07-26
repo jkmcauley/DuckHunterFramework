@@ -112,7 +112,7 @@ public class SpawnManager : MonoBehaviour
         {
             enemy.SetActive(true);
             ai.Init(_waypoints, spawnIndex >= 0 ? spawnIndex : 0);
-            TotalEnemiesSpawned++;
+            EnemySpawned();
         }
         else
         {
@@ -146,11 +146,8 @@ public class SpawnManager : MonoBehaviour
 
 
     public void EnemySpawned()
-
     {
-
         TotalEnemiesSpawned++;
-
     }
 
     public void EnemyHit()
@@ -174,6 +171,7 @@ public class SpawnManager : MonoBehaviour
                 return 0f;
 
             return (float)EnemiesHit / TotalEnemiesSpawned * 100f;
+           
         }
     }
 }

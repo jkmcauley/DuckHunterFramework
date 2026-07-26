@@ -74,7 +74,16 @@ public class ExplosiveBarrel : MonoBehaviour
                 continue;
 
             if (Vector3.Distance(origin, ai.transform.position) <= _killRadius)
+            {
                 ai.Die();
+                if (UIManager.Instance != null)
+                {
+                    UIManager.Instance.AddScore(100);
+                    UIManager.Instance.UpdateUI();
+                }
+                if (SpawnManager.Instance != null)
+                    SpawnManager.Instance.EnemyHit();
+            }
         }
     }
 
