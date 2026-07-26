@@ -7,11 +7,12 @@ public class SpawnManager : MonoBehaviour
 {
     public static SpawnManager Instance { get; private set; }
 
-    [SerializeField] private Transform _spawnPoint;
     [SerializeField] private Transform[] _waypoints;
     [SerializeField] private GameObject _enemyPrefab;
     [SerializeField] private int _poolSize = 20;
     [SerializeField] private float _spawnInterval = 6f;
+    [Tooltip("Don't spawn on the last waypoint (end of path / despawn point).")]
+    [SerializeField] private bool _excludeEndWaypoint = true;
 
     private readonly List<GameObject> _pool = new List<GameObject>();
 
@@ -52,7 +53,6 @@ public class SpawnManager : MonoBehaviour
                 return enemy;
         }
 
-        // Cap at pool size — do not grow
         return null;
     }
 
@@ -67,6 +67,26 @@ public class SpawnManager : MonoBehaviour
         return count;
     }
 
+    /// <returns>Waypoint index, or -1 if none.</returns>
+    int GetRandomSpawnIndex()
+    {
+        if (_waypoints == null || _waypoints.Length == 0)
+            return -1;
+
+        int max = _waypoints.Length;
+        if (_excludeEndWaypoint && max > 1)
+            max -= 1; // skip last = path end / pool return
+
+        for (int attempt = 0; attempt < 8; attempt++)
+        {
+            int index = Random.Range(0, max);
+            if (_waypoints[index] != null)
+                return index;
+        }
+
+        return _waypoints[0] != null ? 0 : -1;
+    }
+
     public GameObject SpawnEnemy()
     {
         if (ActiveEnemyCount() >= _poolSize)
@@ -76,18 +96,24 @@ public class SpawnManager : MonoBehaviour
         if (enemy == null)
             return null;
 
-        enemy.transform.SetPositionAndRotation(_spawnPoint.position, _spawnPoint.rotation);
+        int spawnIndex = GetRandomSpawnIndex();
+        Transform spawn = spawnIndex >= 0 ? _waypoints[spawnIndex] : transform;
+        enemy.transform.SetPositionAndRotation(spawn.position, spawn.rotation);
 
         var agent = enemy.GetComponent<NavMeshAgent>();
         if (agent != null)
-            agent.Warp(_spawnPoint.position);
+            agent.Warp(spawn.position);
 
         var ai = enemy.GetComponent<AIControl>();
         if (ai != null)
         {
             ai.SetWaypoints(_waypoints);
             enemy.SetActive(true);
-            ai.BeginPatrolFromNearestPoint();
+            // Use spawn index so they always continue forward (not nearest, which can reverse)
+            if (spawnIndex >= 0)
+                ai.BeginPatrolFromWaypointIndex(spawnIndex);
+            else
+                ai.BeginPatrolFromNearestPoint();
         }
         else
         {

@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: e3a791e5de9b8409d8a1e4e1282670d8
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - _sfxSource: {instanceID: 0}
+  - _gunShot: {fileID: 8300000, guid: 992cd75b09afb4951adb39a6c2b5f849, type: 3}
+  - _explosionClip: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
