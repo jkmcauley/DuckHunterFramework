@@ -11,6 +11,7 @@ public class SoundManager : MonoBehaviour
     [SerializeField] private AudioClip _gunShot;
     [SerializeField] private AudioClip _explosionClip;
     [SerializeField] private AudioClip _deathSound;
+    [SerializeField] private AudioClip _barrierSound;
 
     void Awake()
     {
@@ -45,6 +46,10 @@ public class SoundManager : MonoBehaviour
     public void PlayDeathSound()
     {
         PlayClip(_deathSound);
+    }
+    public void PlayBarrierSound()
+    {
+        PlayClip(_barrierSound);
     }
 
     void PlayClip(AudioClip clip)

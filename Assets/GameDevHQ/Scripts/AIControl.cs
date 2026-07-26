@@ -11,64 +11,54 @@ public enum AIState
 
 public class AIControl : MonoBehaviour
 {
-    [SerializeField] private NavMeshAgent _agent;
-    [SerializeField] private Transform[] _points;
-    private Animator _animator;
-
-    [Header("Patrol")]
     [SerializeField] private float _stoppingDistance = 0.5f;
-    [SerializeField] private AIState _currentState = AIState.Running;
-    private int _currentPointIndex;
-
-    [Header("Hide")]
-    [SerializeField] private float _hideDuration = 3.5f;
-    [SerializeField] private float _columnDetectRadius = 3.5f;
-    [SerializeField] private float _hideChance = 0.2f;
+    [SerializeField] private float _hideDuration = 6f;
+    [SerializeField] private float _hideRadius = 3.5f;
+    [SerializeField] private float _hideChance = 0.35f;
     [SerializeField] private float _hideCooldown = 10f;
-    [SerializeField] private float _sameFloorYTolerance = 4f;
-    [SerializeField] private string _columnTag = "Column";
-    private float _nextHideTime;
-    private float _hideEndTime;
-    private Transform _occupiedColumn;
+    [SerializeField] private float _deathDelay = 2.5f;
 
-    [Header("Death")]
-    [SerializeField] private float _deathDespawnDelay = 2.5f;
-    private float _deathEndTime;
+    private NavMeshAgent _agent;
+    private Animator _anim;
+    private Transform[] _points;
+    private int _index;
+    private AIState _state = AIState.Running;
 
-    static readonly HashSet<Transform> s_OccupiedColumns = new HashSet<Transform>();
+    private float _timer;
+    private float _nextHide;
+    private Transform _column;
+
+    static readonly HashSet<Transform> _usedColumns = new HashSet<Transform>();
 
     void Awake()
     {
         _agent = GetComponent<NavMeshAgent>();
-        _animator = GetComponent<Animator>();
-
-        if (_agent != null)
-            _agent.avoidancePriority = Random.Range(0, 99);
+        _anim = GetComponentInChildren<Animator>();
     }
 
     void OnEnable()
     {
-        ReleaseColumn();
-        ResetVisualsForPool();
+        FreeColumn();
+        if (_anim != null)
+        {
+            _anim.SetBool("Hiding", false);
+            _anim.ResetTrigger("Death");
+        }
+        var col = GetComponent<Collider>();
+        if (col != null) col.enabled = true;
         ChangeState(AIState.Running);
     }
 
     void OnDisable()
     {
-        ReleaseColumn();
+        FreeColumn();
     }
 
-    void Start()
+    void Update()
     {
-        BeginPatrolFromNearestPoint();
-    }
+        if (_agent == null) return;
 
-    void Update()    //updates state every frame
-    {
-        if (!gameObject.activeInHierarchy || _agent == null)
-            return;
-
-        switch (_currentState)
+        switch (_state)
         {
             case AIState.Running:
                 Running();
@@ -82,13 +72,9 @@ public class AIControl : MonoBehaviour
         }
     }
 
-
-    // State machine checks when state changes, not every frame
-
-
     void ChangeState(AIState newState)
     {
-        _currentState = newState;
+        _state = newState;
 
         switch (newState)
         {
@@ -104,318 +90,192 @@ public class AIControl : MonoBehaviour
         }
     }
 
+    // ---- Running ----
+
     void EnterRunning()
     {
-        if (_animator != null)
-        {
-            _animator.SetBool("Hiding", false);
-            _animator.ResetTrigger("Death");
-        }
-
-        if (_agent != null)
-            _agent.isStopped = false;
-
-        if (HasValidPoints() && _agent != null && _agent.isOnNavMesh)
-            _agent.SetDestination(_points[_currentPointIndex].position);
+        _agent.isStopped = false;
+        if (_anim != null) _anim.SetBool("Hiding", false);
+        if (_points != null && _points.Length > 0)
+            _agent.SetDestination(_points[_index].position);
     }
 
     void Running()
     {
-        if (!HasValidPoints())
-            return;
+        if (_points == null || _points.Length == 0) return;
 
-        if (_agent.isOnNavMesh && !_agent.hasPath && !_agent.pathPending)
-            _agent.SetDestination(_points[_currentPointIndex].position);
+        if (!_agent.hasPath && !_agent.pathPending)
+            _agent.SetDestination(_points[_index].position);
 
-        if (_animator != null)
+        if (_anim != null)
         {
-            _animator.SetBool("Hiding", false);
-            _animator.SetFloat("Speed", _agent.velocity.magnitude);
+            _anim.SetBool("Hiding", false);
+            _anim.SetFloat("Speed", _agent.velocity.magnitude);
         }
 
-        TryEnterHide();
-        AdvanceWaypointIfReached();
+        if (Time.time >= _nextHide)
+        {
+            Transform col = NearestColumn();
+            if (col != null && Random.value <= _hideChance && _usedColumns.Add(col))
+            {
+                _column = col;
+                ChangeState(AIState.Hide);
+                return;
+            }
+            if (col != null)
+                _nextHide = Time.time + 2f;
+        }
+
+        if (!_agent.pathPending && _agent.hasPath && _agent.remainingDistance <= _stoppingDistance)
+        {
+            if (_index >= _points.Length - 1)
+            {
+                Despawn();
+                return;
+            }
+            _index++;
+            _agent.SetDestination(_points[_index].position);
+        }
     }
+
+    // ---- Hide ----
 
     void EnterHide()
     {
-        _hideEndTime = Time.time + _hideDuration;
+        _timer = _hideDuration;
 
-        if (_agent != null)
+        // stand on far side of column from the player/camera
+        if (_column != null)
         {
-            _agent.isStopped = true;
-            _agent.ResetPath();
+            Vector3 fromPlayer = transform.position - _column.position;
+            Camera cam = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
+            if (cam != null)
+                fromPlayer = _column.position - cam.transform.position;
+
+            fromPlayer.y = 0f;
+            if (fromPlayer.sqrMagnitude > 0.01f)
+            {
+                fromPlayer.Normalize();
+                Vector3 hidePos = _column.position + fromPlayer * 1.25f;
+                hidePos.y = transform.position.y;
+                _agent.Warp(hidePos);
+                transform.rotation = Quaternion.LookRotation(fromPlayer);
+            }
         }
 
-        if (_animator != null)
+        _agent.isStopped = true;
+        _agent.ResetPath();
+        _agent.velocity = Vector3.zero;
+
+        if (_anim != null)
         {
-            _animator.SetFloat("Speed", 0f);
-            _animator.SetBool("Hiding", true);
+            _anim.SetFloat("Speed", 0f);
+            _anim.SetBool("Hiding", true);
+            _anim.Play("Cover_idle", 0, 0f);
         }
     }
 
     void Hide()
     {
-        if (_animator != null)
+        // stay stopped the whole hide
+        _agent.isStopped = true;
+        _agent.velocity = Vector3.zero;
+
+        if (_anim != null)
         {
-            _animator.SetFloat("Speed", 0f);
-            _animator.SetBool("Hiding", true);
+            _anim.SetFloat("Speed", 0f);
+            _anim.SetBool("Hiding", true);
         }
 
-        if (Time.time < _hideEndTime)
-            return;
+        _timer -= Time.deltaTime;
+        if (_timer > 0f) return;
 
-        ReleaseColumn();
-        _nextHideTime = Time.time + _hideCooldown;
+        FreeColumn();
+        _nextHide = Time.time + _hideCooldown;
         ChangeState(AIState.Running);
     }
 
+    // ---- Death ----
+
     void EnterDeath()
     {
-        _deathEndTime = Time.time + _deathDespawnDelay;
-        ReleaseColumn();
-
-        if (_agent != null)
-        {
-            _agent.isStopped = true;
-            _agent.ResetPath();
-        }
+        _timer = _deathDelay;
+        FreeColumn();
+        _agent.isStopped = true;
+        _agent.ResetPath();
 
         var col = GetComponent<Collider>();
-        if (col != null)
-            col.enabled = false;
+        if (col != null) col.enabled = false;
 
-        if (_animator != null)
+        if (_anim != null)
         {
-            _animator.SetBool("Hiding", false);
-            _animator.SetFloat("Speed", 0f);
-            _animator.SetTrigger("Death");
+            _anim.SetBool("Hiding", false);
+            _anim.SetFloat("Speed", 0f);
+            _anim.SetTrigger("Death");
         }
 
-        // SoundManager lives in the scene (singleton), not on the enemy prefab
         if (SoundManager.Instance != null)
             SoundManager.Instance.PlayDeathSound();
     }
 
     void Death()
     {
-        if (Time.time < _deathEndTime)
-            return;
-
-        if (SpawnManager.Instance != null)
-            SpawnManager.Instance.ReturnEnemy(gameObject);
-        else
-            gameObject.SetActive(false);
+        _timer -= Time.deltaTime;
+        if (_timer <= 0f)
+            Despawn();
     }
 
+    // ---- Public ----
 
-    // Public Methods below
-
-
-    public void SetWaypoints(Transform[] points)
+    public void Init(Transform[] points, int spawnIndex)
     {
         _points = points;
-    }
-
-    /// <summary>
-    /// Start patrol at the waypoint after spawnIndex. Always moves forward toward the end — never wraps to 0.
-    /// </summary>
-    public void BeginPatrolFromWaypointIndex(int spawnIndex)
-    {
-        if (!HasValidPoints() || _agent == null)
-            return;
-
-        ReleaseColumn();
-
-        spawnIndex = Mathf.Clamp(spawnIndex, 0, _points.Length - 1);
-        int next = spawnIndex + 1;
-        if (next >= _points.Length)
-            next = EndPointIndex;
-
-        _currentPointIndex = next;
-        ChangeState(AIState.Running);
-    }
-
-    /// <summary>
-    /// Resume from the nearest waypoint, always continuing forward (never wraps back to start).
-    /// </summary>
-    public void BeginPatrolFromNearestPoint()
-    {
-        if (!HasValidPoints() || _agent == null)
-            return;
-
-        ReleaseColumn();
-
-        int nearest = GetNearestPointIndex();
-        int next = nearest + 1;
-        if (next >= _points.Length)
-            next = EndPointIndex;
-
-        _currentPointIndex = next;
+        _index = Mathf.Clamp(spawnIndex + 1, 0, points.Length - 1);
+        FreeColumn();
         ChangeState(AIState.Running);
     }
 
     public void Die()
     {
-        if (_currentState == AIState.Death)
-            return;
-
+        if (_state == AIState.Death) return;
         ChangeState(AIState.Death);
     }
 
+    // ---- Helpers ----
 
-    // Running methods
-
-
-    void TryEnterHide()
+    Transform NearestColumn()
     {
-        if (Time.time < _nextHideTime)
-            return;
+        Transform best = null;
+        float bestDist = _hideRadius;
 
-        Transform column = FindNearbyFreeColumn();
-        if (column == null)
-            return;
-
-        if (Random.value > _hideChance)
+        foreach (var go in GameObject.FindGameObjectsWithTag("Column"))
         {
-            _nextHideTime = Time.time + 2f;
-            return;
-        }
+            if (_usedColumns.Contains(go.transform)) continue;
 
-        if (!TryOccupyColumn(column))
-            return;
-
-        ChangeState(AIState.Hide);
-    }
-
-    void AdvanceWaypointIfReached()
-    {
-        if (!HasReachedDestination())
-            return;
-
-        if (_currentPointIndex == EndPointIndex)
-        {
-            ReleaseColumn();
-            if (SpawnManager.Instance != null)
-                SpawnManager.Instance.ReturnEnemy(gameObject);
-            else
-                gameObject.SetActive(false);
-            return;
-        }
-
-        _currentPointIndex++;
-        _agent.SetDestination(_points[_currentPointIndex].position);
-    }
-
-
-
-
-
-    void ResetVisualsForPool()
-    {
-        if (_animator != null)
-        {
-            _animator.SetBool("Hiding", false);
-            _animator.ResetTrigger("Death");
-        }
-
-        var col = GetComponent<Collider>();
-        if (col != null)
-            col.enabled = true;
-    }
-
-    int EndPointIndex => _points.Length - 1;
-
-    bool HasValidPoints()
-    {
-        if (_points == null || _points.Length == 0)
-            return false;
-
-        for (int i = 0; i < _points.Length; i++)
-        {
-            if (_points[i] == null)
-                return false;
-        }
-
-        return true;
-    }
-
-    int GetNearestPointIndex()
-    {
-        int nearest = 0;
-        float bestDist = float.MaxValue;
-
-        for (int i = 0; i < _points.Length; i++)
-        {
-            float dist = Vector3.Distance(transform.position, _points[i].position);
+            Vector3 d = transform.position - go.transform.position;
+            d.y = 0f;
+            float dist = d.magnitude;
             if (dist < bestDist)
             {
                 bestDist = dist;
-                nearest = i;
+                best = go.transform;
             }
         }
-
-        return nearest;
+        return best;
     }
 
-    bool HasReachedDestination()
+    void FreeColumn()
     {
-        if (_agent == null || !_agent.isOnNavMesh || _agent.pathPending)
-            return false;
-
-        if (_agent.pathStatus == NavMeshPathStatus.PathInvalid)
-            return false;
-
-        if (!_agent.hasPath)
-            return false;
-
-        return _agent.remainingDistance <= _stoppingDistance;
+        if (_column == null) return;
+        _usedColumns.Remove(_column);
+        _column = null;
     }
 
-    Transform FindNearbyFreeColumn()
+    void Despawn()
     {
-        GameObject[] columns = GameObject.FindGameObjectsWithTag(_columnTag);
-        Transform nearest = null;
-        float best = _columnDetectRadius;
-
-        foreach (GameObject col in columns)
-        {
-            Transform t = col.transform;
-            if (s_OccupiedColumns.Contains(t))
-                continue;
-
-            if (Mathf.Abs(transform.position.y - t.position.y) > _sameFloorYTolerance)
-                continue;
-
-            Vector3 delta = transform.position - t.position;
-            delta.y = 0f;
-            float d = delta.magnitude;
-            if (d < best)
-            {
-                best = d;
-                nearest = t;
-            }
-        }
-
-        return nearest;
-    }
-
-    bool TryOccupyColumn(Transform column)
-    {
-        if (column == null || s_OccupiedColumns.Contains(column))
-            return false;
-
-        s_OccupiedColumns.Add(column);
-        _occupiedColumn = column;
-        return true;
-    }
-
-    void ReleaseColumn()
-    {
-        if (_occupiedColumn == null)
-            return;
-
-        s_OccupiedColumns.Remove(_occupiedColumn);
-        _occupiedColumn = null;
+        if (SpawnManager.Instance != null)
+            SpawnManager.Instance.ReturnEnemy(gameObject);
+        else
+            gameObject.SetActive(false);
     }
 }

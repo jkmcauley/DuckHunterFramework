@@ -497,29 +497,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 100130, guid: fe2eb4cee9460434eba899555b75efa3, type: 3}
   m_PrefabInstance: {fileID: 7947931514604944004}
   m_PrefabAsset: {fileID: 0}
---- !u!136 &2350393038103488970
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7947931514604977574}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.3
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0, y: 1, z: 0}
 --- !u!195 &2350393038103488969
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -554,27 +531,35 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d767b2c88d1e14f8cbcd9909f43588f3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AIControl
-  _agent: {fileID: 2350393038103488969}
-  _points:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
   _stoppingDistance: 0.5
-  _currentState: 0
-  _hideDuration: 3
-  _columnDetectRadius: 3
-  _hideChance: 0.08
-  _hideCooldown: 12
-  _sameFloorYTolerance: 4
-  _columnTag: Column
+  _hideDuration: 6
+  _hideRadius: 3.5
+  _hideChance: 0.35
+  _hideCooldown: 10
+  _deathDelay: 2.5
+--- !u!136 &2350393038103488970
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7947931514604977574}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.3
+  m_Height: 2
+  m_Direction: 1
+  m_Center: {x: 0, y: 1, z: 0}
 --- !u!4 &7947931514605330822 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 400130, guid: fe2eb4cee9460434eba899555b75efa3, type: 3}

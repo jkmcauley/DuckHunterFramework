@@ -4,10 +4,10 @@ using UnityEngine;
 public class ExplosiveBarrel : MonoBehaviour
 {
     [SerializeField] private GameObject _explosion;
-    [SerializeField] private float _killRadius = 3f;
+    [SerializeField] private float _killRadius = 10f;
 
     [Tooltip("How long barrel stays visible after explosion starts (so blast and barrel overlap).")]
-    [SerializeField] private float _barrelHideDelay = 0.25f;
+    [SerializeField] private float _barrelHideDelay = 0.5f;
 
     [Tooltip("How long the explosion VFX stays in the world before it is destroyed.")]
     [SerializeField] private float _explosionLifetime = 3f;

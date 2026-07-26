@@ -70,6 +70,8 @@
     "dotnet.defaultSolution": "DuckHunterFramework.slnx",
     "cSpell.words": [
         "Behaviour",
-        "Despawn"
+        "Despawn",
+        "Gameover",
+        "Mathf"
     ]
 }

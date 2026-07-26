@@ -10,6 +10,7 @@ public class PlayerRay : MonoBehaviour
     [SerializeField] private float _fireCooldown = 1f;
     [SerializeField] private int _ammoCount = 15;
     [SerializeField] private SoundManager _soundManager;
+    [SerializeField] private int _amount = 100;
 
     private float _nextFireTime;
 
@@ -73,17 +74,27 @@ public class PlayerRay : MonoBehaviour
                 barrel = hitInfo.collider.gameObject.AddComponent<ExplosiveBarrel>();
 
             barrel.Explode();
+            UIManager.Instance.AddScore(_amount);
+            UIManager.Instance.UpdateUI();
             _ammoCount--;
             return;
         }
 
-        if (!hitInfo.collider.CompareTag("Enemy"))
+        if (hitInfo.collider.CompareTag("Enemy"))
+        {
+            AIControl ai = hitInfo.collider.GetComponentInParent<AIControl>();
+            if (ai != null)
+                ai.Die();
+            _ammoCount--;
+            UIManager.Instance.AddScore(_amount);
+            SpawnManager.Instance.EnemyHit();
+            UIManager.Instance.UpdateUI();
             return;
+        }
 
-        AIControl ai = hitInfo.collider.GetComponentInParent<AIControl>();
-        if (ai != null)
-            ai.Die();
-        _ammoCount--;
+        // Hit wall, column, floor, etc.
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.PlayBarrierSound();
     }
 
     void Reload()

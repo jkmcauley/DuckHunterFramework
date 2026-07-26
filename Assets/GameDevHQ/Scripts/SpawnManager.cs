@@ -15,6 +15,9 @@ public class SpawnManager : MonoBehaviour
     [SerializeField] private bool _excludeEndWaypoint = true;
 
     private readonly List<GameObject> _pool = new List<GameObject>();
+    public int TotalEnemiesSpawned { get; private set; }
+
+    public int EnemiesHit { get; private set; }
 
     void Awake()
     {
@@ -107,13 +110,9 @@ public class SpawnManager : MonoBehaviour
         var ai = enemy.GetComponent<AIControl>();
         if (ai != null)
         {
-            ai.SetWaypoints(_waypoints);
             enemy.SetActive(true);
-            // Use spawn index so they always continue forward (not nearest, which can reverse)
-            if (spawnIndex >= 0)
-                ai.BeginPatrolFromWaypointIndex(spawnIndex);
-            else
-                ai.BeginPatrolFromNearestPoint();
+            ai.Init(_waypoints, spawnIndex >= 0 ? spawnIndex : 0);
+            TotalEnemiesSpawned++;
         }
         else
         {
@@ -121,6 +120,7 @@ public class SpawnManager : MonoBehaviour
         }
 
         return enemy;
+
     }
 
     public void ReturnEnemy(GameObject enemy)
@@ -143,4 +143,41 @@ public class SpawnManager : MonoBehaviour
             yield return new WaitForSeconds(spawnInterval);
         }
     }
+
+
+    public void EnemySpawned()
+
+    {
+
+        TotalEnemiesSpawned++;
+
+    }
+
+    public void EnemyHit()
+
+    {
+
+        EnemiesHit++;
+
+    }
+
+    public float HitPercentage
+
+    {
+
+        get
+
+        {
+
+            if (TotalEnemiesSpawned == 0)
+
+                return 0f;
+
+            return (float)EnemiesHit / TotalEnemiesSpawned * 100f;
+        }
+    }
 }
+
+
+
+
