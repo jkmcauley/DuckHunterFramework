@@ -227,10 +227,13 @@ public class AIControl : MonoBehaviour
 
     // ---- Public ----
 
-    public void Init(Transform[] points, int spawnIndex)
+    /// <summary>
+    /// Spawn at first waypoint; run toward last; despawn on arrival.
+    /// </summary>
+    public void Init(Transform[] points)
     {
         _points = points;
-        _index = Mathf.Clamp(spawnIndex + 1, 0, points.Length - 1);
+        _index = points != null && points.Length > 1 ? 1 : 0;
         FreeColumn();
         ChangeState(AIState.Running);
     }

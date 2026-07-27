@@ -11,8 +11,6 @@ public class SpawnManager : MonoBehaviour
     [SerializeField] private GameObject _enemyPrefab;
     [SerializeField] private int _poolSize = 20;
     [SerializeField] private float _spawnInterval = 6f;
-    [Tooltip("Don't spawn on the last waypoint (end of path / despawn point).")]
-    [SerializeField] private bool _excludeEndWaypoint = true;
 
     private readonly List<GameObject> _pool = new List<GameObject>();
     public int TotalEnemiesSpawned { get; private set; }
@@ -70,37 +68,19 @@ public class SpawnManager : MonoBehaviour
         return count;
     }
 
-    /// <returns>Waypoint index, or -1 if none.</returns>
-    int GetRandomSpawnIndex()
-    {
-        if (_waypoints == null || _waypoints.Length == 0)
-            return -1;
-
-        int max = _waypoints.Length;
-        if (_excludeEndWaypoint && max > 1)
-            max -= 1; // skip last = path end / pool return
-
-        for (int attempt = 0; attempt < 8; attempt++)
-        {
-            int index = Random.Range(0, max);
-            if (_waypoints[index] != null)
-                return index;
-        }
-
-        return _waypoints[0] != null ? 0 : -1;
-    }
-
     public GameObject SpawnEnemy()
     {
         if (ActiveEnemyCount() >= _poolSize)
+            return null;
+
+        if (_waypoints == null || _waypoints.Length == 0 || _waypoints[0] == null)
             return null;
 
         GameObject enemy = GetFromPool();
         if (enemy == null)
             return null;
 
-        int spawnIndex = GetRandomSpawnIndex();
-        Transform spawn = spawnIndex >= 0 ? _waypoints[spawnIndex] : transform;
+        Transform spawn = _waypoints[0];
         enemy.transform.SetPositionAndRotation(spawn.position, spawn.rotation);
 
         var agent = enemy.GetComponent<NavMeshAgent>();
@@ -111,7 +91,7 @@ public class SpawnManager : MonoBehaviour
         if (ai != null)
         {
             enemy.SetActive(true);
-            ai.Init(_waypoints, spawnIndex >= 0 ? spawnIndex : 0);
+            ai.Init(_waypoints);
             EnemySpawned();
         }
         else
@@ -120,7 +100,6 @@ public class SpawnManager : MonoBehaviour
         }
 
         return enemy;
-
     }
 
     public void ReturnEnemy(GameObject enemy)
@@ -144,38 +123,24 @@ public class SpawnManager : MonoBehaviour
         }
     }
 
-
     public void EnemySpawned()
     {
         TotalEnemiesSpawned++;
     }
 
     public void EnemyHit()
-
     {
-
         EnemiesHit++;
-
     }
 
     public float HitPercentage
-
     {
-
         get
-
         {
-
             if (TotalEnemiesSpawned == 0)
-
                 return 0f;
 
             return (float)EnemiesHit / TotalEnemiesSpawned * 100f;
-           
         }
     }
 }
-
-
-
-
