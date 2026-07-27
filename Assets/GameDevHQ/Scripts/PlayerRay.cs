@@ -92,7 +92,20 @@ public class PlayerRay : MonoBehaviour
             return;
         }
 
-        // Hit wall, column, floor, etc.
+        if (hitInfo.collider.CompareTag("Column"))
+        {
+            DamageableColumn column = hitInfo.collider.GetComponentInParent<DamageableColumn>();
+            if (column == null)
+                column = hitInfo.collider.gameObject.AddComponent<DamageableColumn>();
+
+            column.TakeHit();
+
+            if (SoundManager.Instance != null)
+                SoundManager.Instance.PlayBarrierSound();
+            return;
+        }
+
+        // Hit wall, floor, etc.
         if (SoundManager.Instance != null)
             SoundManager.Instance.PlayBarrierSound();
     }

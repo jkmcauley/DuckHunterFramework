@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1019915046026891317}
   - component: {fileID: 1019915046026891318}
+  - component: {fileID: 1019915046026891319}
   m_Layer: 0
   m_Name: Column 1
   m_TagString: Untagged
@@ -88,6 +89,23 @@ CapsuleCollider:
   m_Height: 14
   m_Direction: 1
   m_Center: {x: 0, y: 3, z: 0}
+--- !u!114 &1019915046026891319
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 730305112949277265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f6789012345678abcdef01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DamageableColumn
+  _hitsToBreak: 5
+  _rechargeTime: 8
+  _dimMultiplier: 0.35
+  _flickerWhileDown: 1
+  _flickerInterval: 0.12
 --- !u!1001 &37522499615605537
 PrefabInstance:
   m_ObjectHideFlags: 0
